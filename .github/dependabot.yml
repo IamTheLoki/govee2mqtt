@@ -1,22 +1,35 @@
-# Please see the documentation for all configuration options:
-# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
-
 version: 2
 updates:
-  - package-ecosystem: "cargo"
+  - package-ecosystem: cargo
     directory: "/"
     schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
+      interval: daily
+      time: "04:00"
+    open-pull-requests-limit: 10
+    # Das fasst alle Cargo-Updates in einem PR zusammen:
     groups:
-      all:
+      cargo-dependencies:
         patterns:
           - "*"
 
-  - package-ecosystem: "github-actions"
+  - package-ecosystem: docker
     directory: "/"
     schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
+      interval: daily
+      time: "04:00"
+    open-pull-requests-limit: 10
+    # Das fasst alle Docker-Updates in einem PR zusammen:
+    groups:
+      docker-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      actions-dependencies:
+        patterns:
+          - "*"
