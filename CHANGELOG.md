@@ -14,6 +14,8 @@ This is a fork of [wez/govee2mqtt](https://github.com/wez/govee2mqtt).
   - Sensors per probe: core and ambient temperature, plus the alarm limits (core max/min, ambient max/min) as diagnostic sensors
   - Switch "Live Polling" (off by default): polls the device every 15 seconds and refreshes the limits every minute; otherwise the device is read every 15 minutes
 - `AGENTS.md` with project rules
+- README rewritten in the style of the tado-exporter project, with an H5192 section; H5192 listed in `docs/SKUS.md`
+- FAQ entry for the H5192; the FAQ screenshot is now stored in `docs/images/`
 - GitHub workflows `push.yml` (build, test, clippy, fmt on every push), `release.yml` (container image on release) and `cargo-update.yml` (weekly `cargo update` pull request)
 
 ### Changed
@@ -21,7 +23,9 @@ This is a fork of [wez/govee2mqtt](https://github.com/wez/govee2mqtt).
 - `dependabot.yml`: cargo and docker daily and grouped, github-actions weekly
 - `docker-compose.yml` and the OCI source label point to this fork
 - IoT packets without a `state` field no longer fail to parse
+- Home Assistant device info of the bridge: manufacturer and URL point to this fork instead of upstream
 - Fixed all `cargo clippy -- -D warnings` findings
+- Docs: image name and example time zone in `docs/DOCKER.md`, issue links in `docs/FAQ.md` point to this fork
 - Docs: removed the "AddOn" column and add-on hints from `docs/CONFIG.md` and `docs/LAN.md`
 
 ### Removed

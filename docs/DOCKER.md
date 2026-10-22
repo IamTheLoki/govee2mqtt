@@ -34,7 +34,7 @@ RUST_LOG_STYLE=always
 #RUST_LOG=govee=trace
 
 # Set the timezone for timestamps in the log
-TZ=America/Phoenix
+TZ=Europe/Berlin
 ```
 
 3. Set up your `docker-compose.yml`:
@@ -43,7 +43,7 @@ TZ=America/Phoenix
 name: govee2mqtt
 services:
   govee2mqtt:
-    image: ghcr.io/wez/govee2mqtt:latest
+    image: ghcr.io/iamtheloki/govee2mqtt:latest
     container_name: govee2mqtt
     restart: unless-stopped
     env_file:

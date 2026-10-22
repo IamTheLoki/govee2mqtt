@@ -44,13 +44,13 @@ in Home Assistant.
 
 There may be more information available in the Home Assistant logs.  Look for
 log entries that reference `gv2mqtt` or `mqtt`.  Please make a point of
-collecting that and reporting an issue.
+collecting that and [reporting an issue](https://github.com/IamTheLoki/govee2mqtt/issues).
 
 You may also wish to try deleting the device(s) from the MQTT integration
 in Home Assistant, then going to the "Govee to MQTT" device and clicking
 the "Purge Caches" button to see how the situation evolves.
 
-<img src="https://github.com/wez/govee2mqtt/assets/117777/565d8580-f068-4ec3-8c16-11d2808688bf" width="50%">
+<img src="images/greyed-out-entities.png" width="50%">
 
 ## Is my device supported?
 
@@ -76,8 +76,23 @@ Look at [this page](LAN.md) for more details on the LAN API and things you can t
 ## "devices not belong you" error in logs
 
 This error appears to be returned from Govee when trying to use the Platform
-API with devices that are BLE-only and have no WiFi support.  Please file an
-issue about this so that we can add an entry to the quirks database.
+API with devices that are BLE-only and have no WiFi support.  Please [file an
+issue](https://github.com/IamTheLoki/govee2mqtt/issues) about this so that we can add an entry to the quirks database.
 
+## My H5192 meat thermometer shows no values or `unknown`
 
+The H5192 does not push its readings, it only answers requests that the bridge
+sends over the AWS IoT channel. For that you need to configure `GOVEE_EMAIL`
+and `GOVEE_PASSWORD`.
 
+* Without `Live Polling` the thermometer is read every 15 minutes, so the
+  values can be up to 15 minutes old after a restart. Switch on the
+  `Live Polling` entity of the device while you cook.
+* A probe that is not plugged in, and an alarm limit that is not set, show up
+  as `unknown`.
+* The alarm limits are read-only; set them in the Govee app. Changes show up
+  within a minute while `Live Polling` is on.
+* For troubleshooting set `RUST_LOG=govee=debug`: the log then contains the
+  lines `Probe frame ...` for every answer of the device.
+
+Details about the entities are in the [README](../README.md#h5192).
