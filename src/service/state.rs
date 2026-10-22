@@ -1,7 +1,7 @@
 use crate::ble::{Base64HexBytes, SetHumidifierMode, SetHumidifierNightlightParams};
 use crate::lan_api::{Client as LanClient, DeviceStatus as LanDeviceStatus, LanDevice};
 use crate::platform_api::{DeviceCapability, DeviceType, GoveeApiClient};
-use crate::probe_thermometer::{read_current_request, PROBE_NUMBERS};
+use crate::probe_thermometer::{read_current_request, read_limits_request, PROBE_NUMBERS};
 use crate::service::coordinator::Coordinator;
 use crate::service::device::Device;
 use crate::service::hass::{topic_safe_id, HassClient};
@@ -233,10 +233,20 @@ impl State {
 
         log::debug!("requesting probe readings via IoT MQTT for {device}");
         for &probe in PROBE_NUMBERS {
-            let packet = Base64HexBytes::with_bytes(read_current_request(probe));
-            iot.send_real(&info.entry, packet.base64())
-                .await
-                .context("send probe read request")?;
+            let mut requests = vec![read_current_request(probe)];
+            // The limits rarely change, so don't ask for them on every
+            // live poll once we know them
+            if !device.probe_live_polling
+                || device.probes.get(&probe).and_then(|p| p.limits).is_none()
+            {
+                requests.push(read_limits_request(probe));
+            }
+            for request in requests {
+                let packet = Base64HexBytes::with_bytes(request);
+                iot.send_real(&info.entry, packet.base64())
+                    .await
+                    .context("send probe read request")?;
+            }
         }
         self.device_mut(&device.sku, &device.id)
             .await

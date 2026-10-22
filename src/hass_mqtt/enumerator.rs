@@ -160,7 +160,7 @@ pub async fn enumerate_entities_for_device(
 
     if is_probe_sku(&d.sku) {
         for &probe in PROBE_NUMBERS {
-            for channel in [ProbeChannel::Core, ProbeChannel::Ambient] {
+            for channel in ProbeChannel::ALL {
                 entities.add(ProbeTemperatureSensor::new(d, state, probe, channel).await);
             }
         }

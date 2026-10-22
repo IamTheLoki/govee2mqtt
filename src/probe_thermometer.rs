@@ -20,9 +20,19 @@ pub const PROBE_NUMBERS: &[u8] = &[1, 2];
 
 const READ: u8 = 0xaa;
 const REG_CURRENT: u8 = 0x08;
+const REG_LIMITS: u8 = 0x12;
 
 pub fn is_probe_sku(sku: &str) -> bool {
     PROBE_SKUS.contains(&sku)
+}
+
+/// Alarm corridors in degrees Celsius; None when unset
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ProbeLimits {
+    pub core_max: Option<f64>,
+    pub core_min: Option<f64>,
+    pub ambient_max: Option<f64>,
+    pub ambient_min: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -33,21 +43,33 @@ pub struct ProbeReading {
     pub ambient: Option<f64>,
 }
 
-pub type ProbeReadings = BTreeMap<u8, ProbeReading>;
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ProbeState {
+    pub reading: ProbeReading,
+    pub limits: Option<ProbeLimits>,
+}
+
+pub type ProbeStates = BTreeMap<u8, ProbeState>;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ProbeFrame {
     Current { probe: u8, reading: ProbeReading },
+    Limits { probe: u8, limits: ProbeLimits },
 }
 
 fn xor(data: &[u8]) -> u8 {
     data.iter().fold(0, |acc, b| acc ^ b)
 }
 
-/// Builds the 19 bytes (without checksum) of a read request for the
-/// current probe values.
+/// Builds the bytes (without padding and checksum) of a read request
+/// for the current probe values.
 pub fn read_current_request(probe: u8) -> Vec<u8> {
     vec![READ, REG_CURRENT, probe]
+}
+
+/// Builds the bytes of a read request for the alarm limits of a probe.
+pub fn read_limits_request(probe: u8) -> Vec<u8> {
+    vec![READ, REG_LIMITS, probe]
 }
 
 fn decode_temperature(hi: u8, lo: u8) -> Option<f64> {
@@ -65,20 +87,28 @@ pub fn decode_frame(data: &[u8]) -> Option<ProbeFrame> {
         return None;
     }
 
+    let probe = data[2];
+    if !PROBE_NUMBERS.contains(&probe) {
+        return None;
+    }
+
     match data[1] {
-        REG_CURRENT => {
-            let probe = data[2];
-            if !PROBE_NUMBERS.contains(&probe) {
-                return None;
-            }
-            Some(ProbeFrame::Current {
-                probe,
-                reading: ProbeReading {
-                    core: decode_temperature(data[3], data[4]),
-                    ambient: decode_temperature(data[5], data[6]),
-                },
-            })
-        }
+        REG_LIMITS => Some(ProbeFrame::Limits {
+            probe,
+            limits: ProbeLimits {
+                core_max: decode_temperature(data[3], data[4]),
+                core_min: decode_temperature(data[5], data[6]),
+                ambient_max: decode_temperature(data[7], data[8]),
+                ambient_min: decode_temperature(data[9], data[10]),
+            },
+        }),
+        REG_CURRENT => Some(ProbeFrame::Current {
+            probe,
+            reading: ProbeReading {
+                core: decode_temperature(data[3], data[4]),
+                ambient: decode_temperature(data[5], data[6]),
+            },
+        }),
         _ => None,
     }
 }
@@ -130,6 +160,42 @@ mod test {
                 }
             })
         );
+    }
+
+    #[test]
+    fn decode_limits() {
+        // 26AC 02BC 1B58 FC18 -> core 99/7, ambient 70/-10
+        let packet = with_checksum(vec![
+            0xaa, 0x12, 0x01, 0x26, 0xac, 0x02, 0xbc, 0x1b, 0x58, 0xfc, 0x18,
+        ]);
+        assert_eq!(
+            decode_frame(&packet),
+            Some(ProbeFrame::Limits {
+                probe: 1,
+                limits: ProbeLimits {
+                    core_max: Some(99.0),
+                    core_min: Some(7.0),
+                    ambient_max: Some(70.0),
+                    ambient_min: Some(-10.0)
+                }
+            })
+        );
+
+        let unset = with_checksum(vec![
+            0xaa, 0x12, 0x02, 0xff, 0xff, 0x02, 0xbc, 0xff, 0xff, 0xff, 0xff,
+        ]);
+        let Some(ProbeFrame::Limits { limits, .. }) = decode_frame(&unset) else {
+            panic!("expected limits");
+        };
+        assert_eq!(limits.core_max, None);
+        assert_eq!(limits.core_min, Some(7.0));
+    }
+
+    #[test]
+    fn request_packets() {
+        let packet = with_checksum(read_limits_request(2));
+        assert_eq!(&packet[..3], &[0xaa, 0x12, 0x02]);
+        assert_eq!(packet.len(), 20);
     }
 
     #[test]

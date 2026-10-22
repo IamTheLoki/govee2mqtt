@@ -2,9 +2,10 @@ use crate::hass_mqtt::base::{Device, EntityConfig, Origin};
 use crate::hass_mqtt::instance::EntityInstance;
 use crate::hass_mqtt::sensor::{SensorConfig, StateClass};
 use crate::hass_mqtt::switch::SwitchConfig;
+use crate::probe_thermometer::ProbeState;
 use crate::service::device::Device as ServiceDevice;
 use crate::service::hass::{
-    availability_topic, switch_instance_state_topic, topic_safe_id, HassClient,
+    availability_topic, switch_instance_state_topic, topic_safe_id, topic_safe_string, HassClient,
 };
 use crate::service::state::StateHandle;
 use crate::temperature::{TemperatureValue, DEVICE_CLASS_TEMPERATURE};
@@ -16,13 +17,45 @@ pub const LIVE_POLLING_INSTANCE: &str = "probeLivePolling";
 pub enum ProbeChannel {
     Core,
     Ambient,
+    CoreMax,
+    CoreMin,
+    AmbientMax,
+    AmbientMin,
 }
 
 impl ProbeChannel {
+    pub const ALL: [ProbeChannel; 6] = [
+        Self::Core,
+        Self::Ambient,
+        Self::CoreMax,
+        Self::CoreMin,
+        Self::AmbientMax,
+        Self::AmbientMin,
+    ];
+
     fn label(&self) -> &'static str {
         match self {
             Self::Core => "Core",
             Self::Ambient => "Ambient",
+            Self::CoreMax => "Core Max",
+            Self::CoreMin => "Core Min",
+            Self::AmbientMax => "Ambient Max",
+            Self::AmbientMin => "Ambient Min",
+        }
+    }
+
+    fn is_limit(&self) -> bool {
+        !matches!(self, Self::Core | Self::Ambient)
+    }
+
+    fn value(&self, state: &ProbeState) -> Option<f64> {
+        match self {
+            Self::Core => state.reading.core,
+            Self::Ambient => state.reading.ambient,
+            Self::CoreMax => state.limits?.core_max,
+            Self::CoreMin => state.limits?.core_min,
+            Self::AmbientMax => state.limits?.ambient_max,
+            Self::AmbientMin => state.limits?.ambient_min,
         }
     }
 }
@@ -45,7 +78,7 @@ impl ProbeTemperatureSensor {
         let unique_id = format!(
             "sensor-{id}-probe{probe}-{channel}",
             id = topic_safe_id(device),
-            channel = channel.label().to_ascii_lowercase()
+            channel = topic_safe_string(channel.label())
         );
 
         Self {
@@ -53,7 +86,7 @@ impl ProbeTemperatureSensor {
                 base: EntityConfig {
                     availability_topic: availability_topic(),
                     name: Some(format!("Probe {probe} {}", channel.label())),
-                    entity_category: None,
+                    entity_category: channel.is_limit().then(|| "diagnostic".to_string()),
                     origin: Origin::default(),
                     device: Device::for_device(device),
                     unique_id: unique_id.clone(),
@@ -88,13 +121,13 @@ impl EntityInstance for ProbeTemperatureSensor {
             .await
             .expect("device to exist");
 
-        let Some(reading) = device.probes.get(&self.probe) else {
+        let Some(probe_state) = device.probes.get(&self.probe) else {
             return Ok(());
         };
-        let celsius = match self.channel {
-            ProbeChannel::Core => reading.core,
-            ProbeChannel::Ambient => reading.ambient,
-        };
+        if self.channel.is_limit() && probe_state.limits.is_none() {
+            return Ok(());
+        }
+        let celsius = self.channel.value(probe_state);
 
         let value = match celsius {
             Some(c) => {

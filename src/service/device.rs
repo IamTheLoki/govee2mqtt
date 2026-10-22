@@ -4,7 +4,7 @@ use crate::lan_api::{DeviceColor, DeviceStatus as LanDeviceStatus, LanDevice};
 use crate::platform_api::{
     DeviceCapability, DeviceCapabilityState, DeviceType, HttpDeviceInfo, HttpDeviceState,
 };
-use crate::probe_thermometer::{ProbeFrame, ProbeReadings};
+use crate::probe_thermometer::{ProbeFrame, ProbeStates};
 use crate::service::quirks::{resolve_quirk, Quirk, BULB};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -42,7 +42,7 @@ pub struct Device {
     pub humidifier_work_mode: Option<u8>,
     pub humidifier_param_by_mode: HashMap<u8, u8>,
 
-    pub probes: ProbeReadings,
+    pub probes: ProbeStates,
     pub probe_live_polling: bool,
 
     pub last_polled: Option<DateTime<Utc>>,
@@ -184,7 +184,10 @@ impl Device {
     pub fn apply_probe_frame(&mut self, frame: ProbeFrame) {
         match frame {
             ProbeFrame::Current { probe, reading } => {
-                self.probes.insert(probe, reading);
+                self.probes.entry(probe).or_default().reading = reading;
+            }
+            ProbeFrame::Limits { probe, limits } => {
+                self.probes.entry(probe).or_default().limits = Some(limits);
             }
         }
     }
