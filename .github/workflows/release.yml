@@ -24,8 +24,10 @@ jobs:
         with:
           cache-on-failure: true
 
+      # Eigenes target-Verzeichnis: cross baut im Container mit älterer glibc und
+      # kann dort keine auf dem Runner kompilierten Build-Skripte wiederverwenden
       - name: Run Tests
-        run: cargo test --release
+        run: cargo test --release --target-dir target/test
 
       # 1. Repository-Namen in Kleinbuchstaben umwandeln (GHCR verlangt das)
       #    und Version bestimmen (Release-Tag, sonst Version aus der Cargo.toml)
