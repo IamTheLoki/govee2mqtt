@@ -44,6 +44,7 @@ pub struct Device {
 
     pub probes: ProbeStates,
     pub probe_live_polling: bool,
+    pub last_probe_limits_poll: Option<DateTime<Utc>>,
 
     pub last_polled: Option<DateTime<Utc>>,
 

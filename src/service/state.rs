@@ -16,6 +16,8 @@ use std::time::Instant;
 use tokio::sync::{MappedMutexGuard, Mutex, MutexGuard, Semaphore};
 use tokio::time::{sleep, Duration};
 
+const PROBE_LIMITS_REFRESH_SECS: i64 = 60;
+
 #[derive(Default)]
 pub struct State {
     devices_by_id: Mutex<HashMap<String, Device>>,
@@ -232,13 +234,18 @@ impl State {
         }
 
         log::debug!("requesting probe readings via IoT MQTT for {device}");
+        // The limits rarely change, so while live polling we only
+        // refresh them once in a while to pick up changes made in the app
+        let now = chrono::Utc::now();
+        let read_limits = !device.probe_live_polling
+            || device
+                .last_probe_limits_poll
+                .map(|last| now - last > chrono::Duration::seconds(PROBE_LIMITS_REFRESH_SECS))
+                .unwrap_or(true);
+
         for &probe in PROBE_NUMBERS {
             let mut requests = vec![read_current_request(probe)];
-            // The limits rarely change, so don't ask for them on every
-            // live poll once we know them
-            if !device.probe_live_polling
-                || device.probes.get(&probe).and_then(|p| p.limits).is_none()
-            {
+            if read_limits {
                 requests.push(read_limits_request(probe));
             }
             for request in requests {
@@ -247,6 +254,11 @@ impl State {
                     .await
                     .context("send probe read request")?;
             }
+        }
+        if read_limits {
+            self.device_mut(&device.sku, &device.id)
+                .await
+                .last_probe_limits_poll = Some(now);
         }
         self.device_mut(&device.sku, &device.id)
             .await
