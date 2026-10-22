@@ -6,6 +6,8 @@ use async_trait::async_trait;
 use serde::Serialize;
 use std::sync::Arc;
 
+// clippy >= 1.99 flags the must_use that async_trait generates
+#[allow(unknown_lints, clippy::double_must_use)]
 #[async_trait]
 pub trait EntityInstance: Send + Sync {
     async fn publish_config(&self, state: &StateHandle, client: &HassClient) -> anyhow::Result<()>;
