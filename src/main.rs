@@ -13,6 +13,7 @@ mod hass_mqtt;
 mod lan_api;
 #[macro_use]
 mod platform_api;
+mod probe_thermometer;
 mod rest_api;
 mod service;
 mod temperature;

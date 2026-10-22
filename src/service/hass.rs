@@ -3,6 +3,7 @@ use crate::hass_mqtt::enumerator::{enumerate_all_entites, enumerate_entities_for
 use crate::hass_mqtt::humidifier::{mqtt_device_set_work_mode, mqtt_humidifier_set_target};
 use crate::hass_mqtt::instance::EntityList;
 use crate::hass_mqtt::number::mqtt_number_command;
+use crate::hass_mqtt::probe::LIVE_POLLING_INSTANCE;
 use crate::hass_mqtt::select::mqtt_set_mode_scene;
 use crate::lan_api::DeviceColor;
 use crate::opt_env_var;
@@ -451,7 +452,17 @@ async fn mqtt_switch_command(
         _ => anyhow::bail!("invalid {command} for {id}"),
     };
 
-    if instance == "powerSwitch" {
+    if instance == LIVE_POLLING_INSTANCE {
+        state
+            .device_mut(&device.sku, &device.id)
+            .await
+            .probe_live_polling = on;
+        if on {
+            let device = state.resolve_device_read_only(&id).await?;
+            state.poll_probe_thermometer(&device).await?;
+        }
+        state.notify_of_state_change(&device.id).await?;
+    } else if instance == "powerSwitch" {
         state.device_power_on(&device, on).await?;
     } else if let Some(client) = state.get_platform_client().await {
         if let Some(http_dev) = &device.http_device_info {

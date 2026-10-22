@@ -1,6 +1,7 @@
 use crate::ble::{Base64HexBytes, SetHumidifierMode, SetHumidifierNightlightParams};
 use crate::lan_api::{Client as LanClient, DeviceStatus as LanDeviceStatus, LanDevice};
 use crate::platform_api::{DeviceCapability, DeviceType, GoveeApiClient};
+use crate::probe_thermometer::{read_current_request, PROBE_NUMBERS};
 use crate::service::coordinator::Coordinator;
 use crate::service::device::Device;
 use crate::service::hass::{topic_safe_id, HassClient};
@@ -215,6 +216,32 @@ impl State {
             }
         }
         Ok(false)
+    }
+
+    /// Asks a probe thermometer for its current readings.
+    /// The replies arrive asynchronously via the IoT loop.
+    pub async fn poll_probe_thermometer(self: &Arc<Self>, device: &Device) -> anyhow::Result<bool> {
+        let Some(iot) = self.get_iot_client().await else {
+            return Ok(false);
+        };
+        let Some(info) = &device.undoc_device_info else {
+            return Ok(false);
+        };
+        if !iot.is_device_compatible(&info.entry) {
+            return Ok(false);
+        }
+
+        log::debug!("requesting probe readings via IoT MQTT for {device}");
+        for &probe in PROBE_NUMBERS {
+            let packet = Base64HexBytes::with_bytes(read_current_request(probe));
+            iot.send_real(&info.entry, packet.base64())
+                .await
+                .context("send probe read request")?;
+        }
+        self.device_mut(&device.sku, &device.id)
+            .await
+            .set_last_polled();
+        Ok(true)
     }
 
     pub async fn poll_platform_api(self: &Arc<Self>, device: &Device) -> anyhow::Result<bool> {

@@ -271,6 +271,9 @@ fn load_quirks() -> HashMap<String, Quirk> {
         Quirk::thermometer("H5179")
             .with_platform_temperature_sensor_units(TemperatureUnits::Fahrenheit)
             .with_platform_humidity_sensor_units(HumidityUnits::RelativePercent),
+        // WiFi meat thermometer; only available via the AWS IoT channel
+        // <https://github.com/wez/govee2mqtt/issues/677>
+        Quirk::device("H5192", DeviceType::Thermometer, "mdi:thermometer-probe"),
         Quirk::device("H7170", DeviceType::Kettle, "mdi:kettle")
             .with_platform_temperature_sensor_units(TemperatureUnits::Fahrenheit),
         Quirk::device("H7171", DeviceType::Kettle, "mdi:kettle")

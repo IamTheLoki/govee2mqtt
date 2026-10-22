@@ -460,6 +460,10 @@ impl Base64HexBytes {
     pub fn with_bytes(bytes: Vec<u8>) -> Self {
         Self(HexBytes(finish(bytes)))
     }
+
+    pub fn bytes(&self) -> &[u8] {
+        &self.0 .0
+    }
 }
 
 impl<'de> Deserialize<'de> for Base64HexBytes {

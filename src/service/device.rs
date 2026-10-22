@@ -4,6 +4,7 @@ use crate::lan_api::{DeviceColor, DeviceStatus as LanDeviceStatus, LanDevice};
 use crate::platform_api::{
     DeviceCapability, DeviceCapabilityState, DeviceType, HttpDeviceInfo, HttpDeviceState,
 };
+use crate::probe_thermometer::{ProbeFrame, ProbeReadings};
 use crate::service::quirks::{resolve_quirk, Quirk, BULB};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -40,6 +41,9 @@ pub struct Device {
     pub target_humidity_percent: Option<u8>,
     pub humidifier_work_mode: Option<u8>,
     pub humidifier_param_by_mode: HashMap<u8, u8>,
+
+    pub probes: ProbeReadings,
+    pub probe_live_polling: bool,
 
     pub last_polled: Option<DateTime<Utc>>,
 
@@ -175,6 +179,14 @@ impl Device {
 
     pub fn set_last_polled(&mut self) {
         self.last_polled.replace(Utc::now());
+    }
+
+    pub fn apply_probe_frame(&mut self, frame: ProbeFrame) {
+        match frame {
+            ProbeFrame::Current { probe, reading } => {
+                self.probes.insert(probe, reading);
+            }
+        }
     }
 
     pub fn set_nightlight_state(&mut self, params: NotifyHumidifierNightlightParams) {

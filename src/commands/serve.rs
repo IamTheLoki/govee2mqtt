@@ -1,5 +1,6 @@
 use crate::lan_api::Client as LanClient;
 use crate::platform_api::GoveeApiClient;
+use crate::probe_thermometer::is_probe_sku;
 use crate::service::device::Device;
 use crate::service::hass::spawn_hass_integration;
 use crate::service::http::run_http_server;
@@ -103,6 +104,35 @@ async fn periodic_state_poll(state: StateHandle) -> anyhow::Result<()> {
         }
 
         sleep(Duration::from_secs(30)).await;
+    }
+}
+
+/// How often probe thermometers are polled while "Live Polling" is enabled.
+/// The devices only answer requests, and polling costs battery, so it is
+/// opt-in per device; otherwise they are read at the regular POLL_INTERVAL.
+const PROBE_LIVE_POLL_INTERVAL: Duration = Duration::from_secs(15);
+
+async fn probe_thermometer_poll(state: StateHandle) -> anyhow::Result<()> {
+    sleep(Duration::from_secs(20)).await;
+    loop {
+        let now = Utc::now();
+        for d in state.devices().await {
+            if !is_probe_sku(&d.sku) {
+                continue;
+            }
+            let due = d.probe_live_polling
+                || match &d.last_polled {
+                    None => true,
+                    Some(last) => now - last > *POLL_INTERVAL,
+                };
+            if due {
+                if let Err(err) = state.poll_probe_thermometer(&d).await {
+                    log::error!("while polling probes of {d}: {err:#}");
+                }
+            }
+        }
+
+        sleep(PROBE_LIVE_POLL_INTERVAL).await;
     }
 }
 
@@ -343,6 +373,15 @@ impl ServeCommand {
             tokio::spawn(async move {
                 if let Err(err) = periodic_state_poll(state).await {
                     log::error!("periodic_state_poll: {err:#}");
+                }
+            });
+        }
+
+        {
+            let state = state.clone();
+            tokio::spawn(async move {
+                if let Err(err) = probe_thermometer_poll(state).await {
+                    log::error!("probe_thermometer_poll: {err:#}");
                 }
             });
         }

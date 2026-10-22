@@ -1,6 +1,7 @@
 use crate::ble::{Base64HexBytes, GoveeBlePacket, HumidifierAutoMode, NotifyHumidifierMode};
 use crate::lan_api::{DeviceColor, DeviceStatus};
 use crate::platform_api::from_json;
+use crate::probe_thermometer::{decode_frame as decode_probe_frame, is_probe_sku};
 use crate::service::state::StateHandle;
 use crate::undoc_api::{ms_timestamp, DeviceEntry, LoginAccountResponse, ParsedOneClick};
 use crate::UndocApiArguments;
@@ -314,11 +315,12 @@ struct Packet {
     cmd: Option<String>,
     /// This is an embedded json string
     msg: Option<String>,
+    #[serde(default)]
     state: StateUpdate,
     op: Option<OpData>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 struct StateUpdate {
     #[serde(rename = "onOff")]
     pub on_off: Option<u8>,
@@ -416,6 +418,20 @@ async fn run_iot_subscriber(
 
                                 if let Some(op) = &packet.op {
                                     for cmd in &op.command {
+                                        if is_probe_sku(sku) {
+                                            match decode_probe_frame(cmd.bytes()) {
+                                                Some(frame) => {
+                                                    log::debug!("Probe frame {frame:?} for {sku}");
+                                                    device.apply_probe_frame(frame);
+                                                }
+                                                None => log::debug!(
+                                                    "Unhandled probe packet {:02X?} for {sku}",
+                                                    cmd.bytes()
+                                                ),
+                                            }
+                                            continue;
+                                        }
+
                                         let decoded = cmd.decode_for_sku(sku);
                                         log::debug!("Decoded: {decoded:?} for {sku}");
                                         match decoded {

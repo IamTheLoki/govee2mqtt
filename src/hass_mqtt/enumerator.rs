@@ -5,12 +5,14 @@ use crate::hass_mqtt::humidifier::Humidifier;
 use crate::hass_mqtt::instance::EntityList;
 use crate::hass_mqtt::light::DeviceLight;
 use crate::hass_mqtt::number::WorkModeNumber;
+use crate::hass_mqtt::probe::{ProbeChannel, ProbeLivePollingSwitch, ProbeTemperatureSensor};
 use crate::hass_mqtt::scene::SceneConfig;
 use crate::hass_mqtt::select::{SceneModeSelect, WorkModeSelect};
 use crate::hass_mqtt::sensor::{CapabilitySensor, DeviceStatusDiagnostic, GlobalFixedDiagnostic};
 use crate::hass_mqtt::switch::CapabilitySwitch;
 use crate::hass_mqtt::work_mode::ParsedWorkMode;
 use crate::platform_api::{DeviceCapability, DeviceCapabilityKind, DeviceType};
+use crate::probe_thermometer::{is_probe_sku, PROBE_NUMBERS};
 use crate::service::device::Device as ServiceDevice;
 use crate::service::hass::{availability_topic, oneclick_topic, purge_cache_topic};
 use crate::service::state::StateHandle;
@@ -155,6 +157,16 @@ pub async fn enumerate_entities_for_device(
 
     entities.add(DeviceStatusDiagnostic::new(d, state));
     entities.add(ButtonConfig::request_platform_data_for_device(d));
+
+    if is_probe_sku(&d.sku) {
+        for &probe in PROBE_NUMBERS {
+            for channel in [ProbeChannel::Core, ProbeChannel::Ambient] {
+                entities.add(ProbeTemperatureSensor::new(d, state, probe, channel).await);
+            }
+        }
+        entities.add(ProbeLivePollingSwitch::new(d, state));
+        return Ok(());
+    }
 
     if d.supports_rgb() || d.get_color_temperature_range().is_some() || d.supports_brightness() {
         entities.add(DeviceLight::for_device(d, state, None).await?);
