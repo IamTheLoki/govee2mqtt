@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This is a fork of [wez/govee2mqtt](https://github.com/wez/govee2mqtt).
 
+## [2.0.2] - 2026-10-24
+
+Security release: resolves all open Dependabot alerts. No functional changes.
+
+### Security
+- Updated transitive dependencies in `Cargo.lock` to patched versions (via `cargo update`):
+  - `rustls` 0.23.35 -> 0.23.46 (TLS 1.3 handshake messages accepted across encryption
+    level boundaries)
+  - `rustls-webpki` 0.103.8 -> 0.103.16 (DoS via panic on a malformed CRL, CRL distribution
+    point matching, name constraint handling)
+  - `bytes` 1.11.0 -> 1.12.1 (integer overflow in `BytesMut::reserve`)
+  - `quinn-proto` 0.11.14 -> 0.11.19 (remote memory exhaustion) and `rand` 0.9.2 -> 0.10.3
+    (unsound with a custom logger): both are only present in the lockfile through the
+    optional HTTP/3 support of `reqwest` and are not compiled into the application
+
+### Changed
+- Updated `parking_lot` 0.12 -> 0.13
+- Updated the remaining locked dependencies to their latest compatible versions
+
+## [2.0.1] - 2026-10-22
+
+Dependency update release. No functional changes.
+
+### Changed
+- Updated 17 cargo dependencies, among them `reqwest` 0.13.5, `openssl` 0.10.81,
+  `csscolorparser` 0.9 and `tower-http` 0.7
+- Updated GitHub Actions: `actions/checkout` 7, `peter-evans/create-pull-request` 8,
+  `docker/setup-buildx-action` 4
+
 ## [2.0.0] - 2026-10-22
 
 First release of this fork of [wez/govee2mqtt](https://github.com/wez/govee2mqtt).
