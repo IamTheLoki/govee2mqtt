@@ -191,6 +191,14 @@ This is a fork of [wez/govee2mqtt](https://github.com/wez/govee2mqtt) by Wez Fur
 
 ---
 
+## ☕ Support
+
+If you like this fork, you can support it with a coffee:
+
+[![Buy Me a Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=looki1980b&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/looki1980b)
+
+---
+
 ## 📄 License
 
 This project is licensed under the MIT License. See [LICENSE.md](LICENSE.md) for details.
